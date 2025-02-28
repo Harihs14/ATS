@@ -32,9 +32,9 @@ export default function Login() {
 
       // Update the role check to match ProtectedRoute expectations
       if (profile?.role === 'hr') {
-        navigate('/hr/dashboard');
+        navigate('/dashboard');
       } else if (profile?.role === 'candidate') {
-        navigate('/candidate/dashboard');
+        navigate('/cdashboard');
       } else {
         throw new Error('Invalid user role');
       }

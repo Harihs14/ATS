@@ -1,8 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Building2, LogOut, Briefcase, CheckCircle, XCircle, Clock, FileText } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { GlobalWorkerOptions } from 'pdfjs-dist';
+import * as pdfjsLib from 'pdfjs-dist';
+import * as mammoth from 'mammoth';
+
+// Set the worker source to the local file
+GlobalWorkerOptions.workerSrc = `${import.meta.env.VITE_PUBLIC_URL}/pdf.worker.min.js`;
 
 interface Job {
   id: string;
@@ -91,8 +97,21 @@ export default function CandidateDashboard() {
           return;
         }
 
-        // Read file content as plain text
-        const resumeText = await file.text();
+        // Read file content based on file type
+        let resumeText: string;
+        if (file.type === 'text/plain') {
+          resumeText = await readFileAsText(file);
+        } else if (file.type === 'application/pdf') {
+          resumeText = await readPdfAsText(file);
+        } else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || file.type === 'application/msword') {
+          resumeText = await readDocAsText(file);
+        } else {
+          throw new Error('Unsupported file type. Please upload a .txt, .pdf, or .doc/.docx file.');
+        }
+
+        if (!resumeText) {
+          throw new Error('Failed to read resume text. Please check the file format.');
+        }
 
         // Submit application
         const { error } = await supabase
@@ -120,6 +139,39 @@ export default function CandidateDashboard() {
     };
 
     resumeInput.click();
+  };
+
+  // Helper function to read file as text
+  const readFileAsText = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const text = event.target?.result as string;
+        resolve(text);
+      };
+      reader.onerror = (error) => {
+        reject(new Error('Error reading file: ' + error));
+      };
+      reader.readAsText(file);
+    });
+  };
+
+  const readPdfAsText = async (file: File): Promise<string> => {
+    const pdfData = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
+    let text = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      text += content.items.map((item: any) => item.str).join(' ') + '\n';
+    }
+    return text;
+  };
+
+  const readDocAsText = async (file: File): Promise<string> => {
+    const arrayBuffer = await file.arrayBuffer();
+    const { value } = await mammoth.extractRawText({ arrayBuffer });
+    return value;
   };
 
   const handleSignOut = async () => {

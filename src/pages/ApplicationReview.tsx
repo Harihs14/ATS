@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { parseResume, matchResumeWithJD } from '../lib/huggingface';
 import { toast } from 'react-hot-toast';
 import { Building2, ArrowLeft, FileText, CheckCircle, XCircle } from 'lucide-react';
 
@@ -33,7 +32,6 @@ export default function ApplicationReview() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
-  const [processing, setProcessing] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -72,53 +70,15 @@ export default function ApplicationReview() {
     }
   }
 
-  async function handleParseResume(application: Application) {
-    if (!job) return;
-    setProcessing(application.id);
-
-    try {
-      // Parse resume
-      const parseResult = await parseResume(application.resume_text);
-      
-      // Match with job description
-      const matchResult = await matchResumeWithJD(
-        application.resume_text,
-        `${job.description}\n\nRequirements:\n${job.requirements}`
-      );
-
-      // Save results
-      const { error } = await supabase
-        .from('parsed_resumes')
-        .insert([
-          {
-            application_id: application.id,
-            parsed_data: parseResult,
-            match_score: matchResult.score || 0,
-            match_details: matchResult
-          }
-        ]);
-
-      if (error) throw error;
-
-      // Refresh data
-      fetchJobAndApplications();
-      toast.success('Resume parsed successfully!');
-    } catch (error: any) {
-      toast.error(error.message);
-    } finally {
-      setProcessing(null);
-    }
-  }
-
   async function updateApplicationStatus(applicationId: string, status: 'selected' | 'rejected') {
     try {
       const { error } = await supabase
         .from('applications')
         .update({ status })
         .eq('id', applicationId);
-
+  
       if (error) throw error;
-
+  
       fetchJobAndApplications();
       toast.success(`Candidate ${status}`);
     } catch (error: any) {
@@ -205,94 +165,26 @@ export default function ApplicationReview() {
                         </h4>
                         <p className="text-sm text-gray-500">{application.candidate.email}</p>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        {application.status === 'pending' && (
-                          <>
-                            <button
-                              onClick={() => updateApplicationStatus(application.id, 'selected')}
-                              className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
-                            >
-                              <CheckCircle className="h-4 w-4 mr-1" />
-                              Select
-                            </button>
-                            <button
-                              onClick={() => updateApplicationStatus(application.id, 'rejected')}
-                              className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
-                            >
-                              <XCircle className="h-4 w-4 mr-1" />
-                              Reject
-                            </button>
-                          </>
-                        )}
-                        {application.status === 'selected' && (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            Selected
-                          </span>
-                        )}
-                        {application.status === 'rejected' && (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                            Rejected
-                          </span>
-                        )}
-                      </div>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => navigate(`/applications/${application.id}/review`)}
+                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+                      >
+                        <FileText className="h-4 w-4 mr-1" />
+                        Review
+                      </button>
+                      {application.status === 'selected' && (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          Selected
+                        </span>
+                      )}
+                      {application.status === 'rejected' && (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                          Rejected
+                        </span>
+                      )}
                     </div>
-
-                    <div className="prose max-w-none">
-                      <h5 className="text-sm font-medium text-gray-900 mb-2">Resume</h5>
-                      <pre className="text-sm text-gray-500 whitespace-pre-wrap bg-gray-50 p-4 rounded-md">
-                        {application.resume_text}
-                      </pre>
                     </div>
-
-                    {!application.parsed_resume && (
-                      <div className="mt-4">
-                        <button
-                          onClick={() => handleParseResume(application)}
-                          disabled={!!processing}
-                          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50"
-                        >
-                          {processing === application.id ? (
-                            <>
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                              Processing...
-                            </>
-                          ) : (
-                            'Parse Resume & Match'
-                          )}
-                        </button>
-                      </div>
-                    )}
-
-                    {application.parsed_resume && (
-                      <div className="mt-4 space-y-4">
-                        <div>
-                          <h5 className="text-sm font-medium text-gray-900 mb-2">Parsed Information</h5>
-                          <pre className="text-sm text-gray-500 whitespace-pre-wrap bg-gray-50 p-4 rounded-md">
-                            {JSON.stringify(application.parsed_resume.parsed_data, null, 2)}
-                          </pre>
-                        </div>
-
-                        <div>
-                          <h5 className="text-sm font-medium text-gray- board">Match Analysis</h5>
-                          <div className="bg-gray-50 p-4 rounded-md">
-                            <div className="flex items-center mb-2">
-                              <div className="text-lg font-semibold text-gray-900">
-                                Match Score: {Math.round(application.parsed_resume.match_score)}%
-                              </div>
-                              <div className="ml-4 flex-1 bg-gray-200 rounded-full h-2">
-                                <div
-                                  className="bg-indigo-600 h-2 rounded-full"
-                                  style={{ width: `${application.parsed_resume.match_score}%` }}
-                                />
-                              </div>
-                            </div>
-                            <pre className="text-sm text-gray-500 whitespace-pre-wrap">
-                              {JSON.stringify(application.parsed_resume.match_details, null, 2)}
-                            </pre>
-                          </div>
-                        </div>
-                      </div>
-                    )}
                   </li>
                 ))}
               </ul>

@@ -6,6 +6,8 @@ import HRDashboard from './pages/HRDashboard';
 import CandidateDashboard from './pages/CandidateDashboard';
 import JobPost from './pages/JobPost';
 import ApplicationReview from './pages/ApplicationReview';
+import ApplicationInsights from './pages/ApplicationInsights';
+
 
 function App() {
   return (
@@ -18,6 +20,7 @@ function App() {
         <Route path="/post-job" element={<JobPost />} />
         <Route path="/review/:id" element={<ApplicationReview />} />  
         <Route path="/cdashboard" element={<CandidateDashboard />} />
+        <Route path="/applications/:id/review" element={<ApplicationInsights />} />
         <Route path="/" element={<Login />} />
         </Routes>
 

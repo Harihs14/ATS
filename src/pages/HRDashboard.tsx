@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { toast } from 'react-hot-toast';
@@ -42,6 +42,7 @@ export default function HRDashboard() {
       setLoading(false);
     }
   }
+
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -96,39 +97,39 @@ export default function HRDashboard() {
           ) : (
             <div className="bg-white shadow overflow-hidden sm:rounded-md">
               <ul className="divide-y divide-gray-200">
-                {jobs.map((job) => (
-                  <li key={job.id}>
-                    <div className="px-4 py-4 sm:px-6">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-lg font-medium text-indigo-600 truncate">{job.title}</h3>
-                        <div className="ml-2 flex-shrink-0 flex">
-                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            job.status === 'open' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                          }`}>
-                            {job.status}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="mt-2 sm:flex sm:justify-between">
-                        <div className="sm:flex">
-                          <p className="flex items-center text-sm text-gray-500">
-                            <Users className="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" />
-                            {job._count?.applications || 0} applications
-                          </p>
-                        </div>
-                        <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
-                          <Link
-                            to={`/review/${job.id}`}
-                            className="text-indigo-600 hover:text-indigo-900"
-                          >
-                            Review Applications
-                            <span className="ml-1">→</span>
-                          </Link>
-                        </div>
+              {jobs.map((job) => (
+                <li key={job.id}>
+                  <div className="px-4 py-4 sm:px-6">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-medium text-indigo-600 truncate">{job.title}</h3>
+                      <div className="ml-2 flex-shrink-0 flex">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          job.status === 'open' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {job.status}
+                        </span>
                       </div>
                     </div>
-                  </li>
-                ))}
+                    <div className="mt-2 sm:flex sm:justify-between">
+                      <div className="sm:flex">
+                        <p className="flex items-center text-sm text-gray-500">
+                          <Users className="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" />
+                          {job._count?.applications ?? 0} applications
+                        </p>
+                      </div>
+                      <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
+                        <Link
+                          to={`/review/${job.id}`}
+                          className="text-indigo-600 hover:text-indigo-900"
+                        >
+                          Review Applications
+                          <span className="ml-1">→</span>
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                </li>
+              ))}
               </ul>
             </div>
           )}
