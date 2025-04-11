@@ -3,12 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Building2, LogOut, Briefcase, CheckCircle, XCircle, Clock, FileText } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { GlobalWorkerOptions } from 'pdfjs-dist';
-import * as pdfjsLib from 'pdfjs-dist';
-import * as mammoth from 'mammoth';
 
-// Set the worker source to the local file
-GlobalWorkerOptions.workerSrc = `${import.meta.env.VITE_PUBLIC_URL}/pdf.worker.min.js`;
 
 interface Job {
   id: string;
@@ -61,117 +56,6 @@ export default function CandidateDashboard() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleApply = async (jobId: string) => {
-    const resumeInput = document.createElement('input');
-    resumeInput.type = 'file';
-    resumeInput.accept = '.txt,.pdf,.doc,.docx';
-    
-    resumeInput.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) {
-        toast.error('Please select a file');
-        return;
-      }
-
-      setLoading(true);
-
-      try {
-        // Get current user
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          throw new Error('Please login to apply');
-        }
-
-        // Check if already applied
-        const { data: existingApplication } = await supabase
-          .from('applications')
-          .select('id')
-          .eq('job_id', jobId)
-          .eq('candidate_id', user.id)
-          .single();
-
-        if (existingApplication) {
-          toast.error('You have already applied for this job');
-          return;
-        }
-
-        // Read file content based on file type
-        let resumeText: string;
-        if (file.type === 'text/plain') {
-          resumeText = await readFileAsText(file);
-        } else if (file.type === 'application/pdf') {
-          resumeText = await readPdfAsText(file);
-        } else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || file.type === 'application/msword') {
-          resumeText = await readDocAsText(file);
-        } else {
-          throw new Error('Unsupported file type. Please upload a .txt, .pdf, or .doc/.docx file.');
-        }
-
-        if (!resumeText) {
-          throw new Error('Failed to read resume text. Please check the file format.');
-        }
-
-        // Submit application
-        const { error } = await supabase
-          .from('applications')
-          .insert([
-            {
-              job_id: jobId,
-              candidate_id: user.id,
-              resume_text: resumeText,
-              status: 'pending'
-            }
-          ]);
-
-        if (error) throw error;
-        
-        toast.success('Application submitted successfully!');
-        await fetchJobsAndApplications();
-        setActiveTab('applications');
-      } catch (error: any) {
-        console.error('Application Error:', error);
-        toast.error(error.message || 'Failed to submit application');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    resumeInput.click();
-  };
-
-  // Helper function to read file as text
-  const readFileAsText = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const text = event.target?.result as string;
-        resolve(text);
-      };
-      reader.onerror = (error) => {
-        reject(new Error('Error reading file: ' + error));
-      };
-      reader.readAsText(file);
-    });
-  };
-
-  const readPdfAsText = async (file: File): Promise<string> => {
-    const pdfData = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
-    let text = '';
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const content = await page.getTextContent();
-      text += content.items.map((item: any) => item.str).join(' ') + '\n';
-    }
-    return text;
-  };
-
-  const readDocAsText = async (file: File): Promise<string> => {
-    const arrayBuffer = await file.arrayBuffer();
-    const { value } = await mammoth.extractRawText({ arrayBuffer });
-    return value;
   };
 
   const handleSignOut = async () => {
@@ -270,21 +154,31 @@ export default function CandidateDashboard() {
                     {jobs.map((job) => (
                       <li key={job.id}>
                         <div className="px-4 py-4 sm:px-6">
-                          <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-medium text-indigo-600">{job.title}</h3>
-                            <button
-                              onClick={() => handleApply(job.id)}
-                              className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-                            >
-                              <FileText className="h-4 w-4 mr-1.5" />
-                              Apply Now
-                            </button>
-                          </div>
-                          <div className="mt-2">
-                            <p className="text-sm text-gray-600">{job.description}</p>
-                            <div className="mt-4">
-                              <h4 className="text-sm font-medium text-gray-900">Requirements:</h4>
-                              <p className="mt-1 text-sm text-gray-600">{job.requirements}</p>
+                          <div>
+                            <div className="flex items-center justify-between">
+                              <h3 className="text-lg font-medium text-indigo-600">{job.title}</h3>
+                            </div>
+                            <div className="mt-2">
+                              <p className="text-sm text-gray-600">
+                                {job.description.length > 150 
+                                  ? `${job.description.substring(0, 150)}...` 
+                                  : job.description}
+                              </p>
+                              <div className="mt-4 flex justify-between items-center">
+                                <button
+                                  onClick={() => navigate(`/jobs/${job.id}`)}
+                                  className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+                                >
+                                  View Details
+                                </button>
+                                <button
+                                  onClick={() => navigate(`/jobs/${job.id}`)}
+                                  className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+                                >
+                                  <FileText className="h-4 w-4 mr-1.5" />
+                                  Apply Now
+                                </button>
+                              </div>
                             </div>
                           </div>
                         </div>

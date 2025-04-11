@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { toast } from 'react-hot-toast';
-import { Building2, LogOut, Plus, Briefcase, Users, BarChart2, Search } from 'lucide-react';
+import { Building2, LogOut, Plus, Users, Search } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts';
 
 interface Job {
@@ -11,9 +11,7 @@ interface Job {
   description: string;
   status: string;
   created_at: string;
-  _count?: {
-    applications: number;
-  };
+  applications: number;
 }
 
 export default function HRDashboard() {
@@ -29,12 +27,33 @@ export default function HRDashboard() {
 
   async function fetchJobs() {
     try {
-      const { data, error } = await supabase
+      // Fetch jobs with their application counts
+      const { data: jobsData, error: jobsError } = await supabase
         .from('jobs')
-        .select('*, applications (count)')
+        .select(`
+          *,
+          applications (count)
+        `)
         .order('created_at', { ascending: false });
-      if (error) throw error;
-      setJobs(data || []);
+
+      if (jobsError) throw jobsError;
+
+      // Fetch application counts for each job
+      const jobsWithCounts = await Promise.all(
+        (jobsData || []).map(async (job) => {
+          const { count } = await supabase
+            .from('applications')
+            .select('*', { count: 'exact' })
+            .eq('job_id', job.id);
+
+          return {
+            ...job,
+            applications: count || 0
+          };
+        })
+      );
+
+      setJobs(jobsWithCounts);
     } catch (error: any) {
       toast.error(error.message);
     } finally {
@@ -115,9 +134,12 @@ export default function HRDashboard() {
                   </div>
                   <div className="mt-2 flex justify-between">
                     <p className="text-sm text-gray-500 flex items-center">
-                      <Users className="h-5 w-5 mr-1 text-gray-400" /> {job._count?.applications ?? 0} applications
+                      <Users className="h-5 w-5 mr-1 text-gray-400" /> {job.applications} applications
                     </p>
-                    <Link to={`/review/${job.id}`} className="text-indigo-600 hover:text-indigo-900">Review Applications →</Link>
+                    <div className="space-x-4">
+                      <Link to={`/review/${job.id}`} className="text-indigo-600 hover:text-indigo-900">Review Applications</Link>
+                      <Link to={`/jobs/${job.id}/ai-review`} className="text-indigo-600 hover:text-indigo-900">AI Analysis →</Link>
+                    </div>
                   </div>
                 </li>
               ))}
@@ -128,12 +150,12 @@ export default function HRDashboard() {
         <div className="mt-8 p-6 bg-white shadow rounded-md">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Job Applications Analytics</h2>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={jobs.map(job => ({ name: job.title, applications: job._count?.applications || 0 }))}>
-              <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+            <BarChart data={jobs.map(job => ({ name: job.title.slice(0, 20) + '...', applications: job.applications }))}>
+              <XAxis dataKey="name" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={100} />
               <YAxis allowDecimals={false} />
               <Tooltip />
               <Legend />
-              <Bar dataKey="applications" fill="#6366F1" />
+              <Bar dataKey="applications" fill="#6366F1" name="Applications" />
             </BarChart>
           </ResponsiveContainer>
         </div>

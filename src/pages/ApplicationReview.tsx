@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { toast } from 'react-hot-toast';
-import { Building2, ArrowLeft, FileText, CheckCircle, XCircle } from 'lucide-react';
+import { Building2, ArrowLeft, FileText } from 'lucide-react';
 
 interface Application {
   id: string;
@@ -70,6 +70,10 @@ export default function ApplicationReview() {
     }
   }
 
+  // This function can be used to update application status from this screen
+  // Currently not used as status updates happen in ApplicationInsights
+  // Keeping it for potential future use
+  /*
   async function updateApplicationStatus(applicationId: string, status: 'selected' | 'rejected') {
     try {
       const { error } = await supabase
@@ -85,6 +89,7 @@ export default function ApplicationReview() {
       toast.error(error.message);
     }
   }
+  */
 
   if (loading) {
     return (
@@ -118,7 +123,7 @@ export default function ApplicationReview() {
           <div className="flex justify-between h-16">
             <div className="flex items-center">
               <Building2 className="h-8 w-8 text-indigo-600" />
-              <span className="ml-2 text-xl font-semibold text-gray-900">Application Review</span>
+              <span className="ml-2 text-xl font-semibold text-gray-900">Application Management</span>
             </div>
             <div className="flex items-center">
               <button
@@ -145,7 +150,7 @@ export default function ApplicationReview() {
             </div>
           </div>
 
-          <h3 className="text-xl font-semibold text-gray-900 mb-4">Applications ({applications.length})</h3>
+          <h3 className="text-xl font-semibold text-gray-900 mb-4">Applications ({applications.length}) - Manual Review</h3>
           
           {applications.length === 0 ? (
             <div className="text-center py-12 bg-white rounded-lg shadow">
